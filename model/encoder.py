@@ -1,4 +1,6 @@
+import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from model.modules import FCBlock, MixerLayer
 
 class CompositionalEncoder(nn.Module):
@@ -48,3 +50,23 @@ class VectorQuantizer(nn.Module):
 
         return quantized.view(b, m, h), loss, encoding_indices
  
+class Decoder(nn.Module):
+    def __init__(self,k,d,h,m,dropout_ratio=0.0):
+        super().__init__()
+        self.k = k
+        self.d = d
+        self.mixer  = MixerLayer(
+            hidden_dim=h,
+            hidden_inter_dim=h,
+            token_inter_dim=m,
+            token_dim=m,
+            dropout_ratio=dropout_ratio
+        )
+        self.linear = nn.Linear(m*h,k*d)
+    def forward(self,x):
+        # x: b x m x h
+        x = self.mixer(x) # b x m x h
+        x = x.flatten(1) # b x mh
+        x = self.linear(x) # b x kd
+        x = x.view(x.shape[0],self.k,self.d) # b x k x d
+        return x
