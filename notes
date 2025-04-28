@@ -1,0 +1,3 @@
+210 epochs for training on mpii
+
+swin-base -> image 256*256
