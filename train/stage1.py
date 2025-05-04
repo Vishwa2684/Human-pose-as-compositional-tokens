@@ -15,6 +15,7 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 IMAGE_DIR = '../images/'
 CSV_PATH = '../mpii_human_pose_v1_u12_2/mpii_human_pose.csv'
 IMG_SIZE = 224
+BATCH_SIZE = 32
 
 # -----------------------------
 # DATA
@@ -26,7 +27,7 @@ transform = transforms.Compose([
 ])
 
 mpii =  MPIIDataset(CSV_PATH,IMAGE_DIR,transform)
-data = DataLoader(mpii,batch_size=16,shuffle=True)
+data = DataLoader(mpii,batch_size=BATCH_SIZE,shuffle=True)
 print('data loaded')
 # -----------------------------
 # PARAMETERS
@@ -86,8 +87,14 @@ for epoch in range(EPOCHS):
     print(f'Epoch [{epoch+1}/{EPOCHS}] - Avg Loss: {avg_loss:.4f}')
 
     if (epoch + 1) % 10 == 0:
+        if os.path.exists('../ckpt') == False:
+            os.mkdir('../ckpt')
+        
         torch.save({
-            'encoder': encoder.state_dict(),
-            'quantizer': vq.state_dict(),
-            'decoder': decoder.state_dict()
+                'encoder': encoder.state_dict(),
+                'quantizer': vq.state_dict(),
+                'decoder': decoder.state_dict(),
+                'optimizer': optimizer.state_dict(),
+                'loss': avg_loss,
+                'epoch': epoch+1
         }, f'../ckpt/{epoch+1}.pt')
