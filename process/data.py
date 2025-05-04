@@ -40,14 +40,3 @@ class MPIIDataset(Dataset):
             image = self.transform(image)
 
         return image, keypoints
-
-class KeypointDataset(Dataset):
-    def __init__(self, base_dataset):
-        self.base_dataset = base_dataset
-
-    def __len__(self):
-        return len(self.base_dataset)
-
-    def __getitem__(self, idx):
-        _,keypoints = self.base_dataset[idx]  # Ignore keypoints
-        return keypoints
