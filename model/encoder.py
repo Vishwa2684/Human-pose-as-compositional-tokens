@@ -30,7 +30,7 @@ class VectorQuantizer(nn.Module):
     def forward(self, x):
         # x: (batch_size, M tokens, code_dim)
         b, m, h = x.shape
-        flat_x = x.view(-1, h)  # (b*m, h)
+        flat_x = x.reshape(-1, h)  # (b*m, h)
 
         # compute distances
         distances = (
