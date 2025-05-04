@@ -26,9 +26,7 @@ transform = transforms.Compose([
 ])
 
 mpii =  MPIIDataset(CSV_PATH,IMAGE_DIR,transform)
-keypoints = KeypointDataset(mpii)
-
-data = DataLoader(keypoints,batch_size=16,shuffle=True)
+data = DataLoader(mpii,batch_size=16,shuffle=True)
 print('data loaded')
 # -----------------------------
 # PARAMETERS
@@ -41,9 +39,9 @@ m = 16
 # -----------------------------
 # MODELS
 # -----------------------------
-encoder = CompositionalEncoder(k=NUM_JOINTS,d=DIMENSION,h=HIDDEN_DIM,m=m)
-vq = VectorQuantizer(v=2*HIDDEN_DIM,h=HIDDEN_DIM,commitment_cost=0.25)
-decoder = Decoder(k=NUM_JOINTS,d=DIMENSION,h=HIDDEN_DIM,m=m)
+encoder = CompositionalEncoder(k=NUM_JOINTS,d=DIMENSION,h=HIDDEN_DIM,m=m).to(device)
+vq = VectorQuantizer(v=2*HIDDEN_DIM,h=HIDDEN_DIM,commitment_cost=0.25).to(device)
+decoder = Decoder(k=NUM_JOINTS,d=DIMENSION,h=HIDDEN_DIM,m=m).to(device)
 
 # -----------------------------
 # TRAINING
@@ -63,21 +61,33 @@ for epoch in range(EPOCHS):
     encoder.train()
     vq.train()
     decoder.train()
-    for batch in tqdm(data):
-        g = batch.to(device)
-        g_e = encoder(keypoints)
-        v_q,vq_loss,encoding_indices = vq(g_e)
-        g_h = decoder(v_q)
 
-        recon_loss = F.smooth_l1_loss(g_h,g)
+    loop = tqdm(data, desc=f'Epoch [{epoch+1}/{EPOCHS}]', leave=False)
 
-        l_pct = recon_loss + BETA*vq_loss
+    for images, keypoints in loop:
+        keypoints = keypoints.to(device)
 
-        
-        if epoch % 5 == 0:
-            torch.save({
-                'quantizer':vq.state_dict(),
-                'decoder':decoder.state_dict()
-            },f'./ckpt/{epoch}.pt')
+        optimizer.zero_grad()
 
-        
+        g_e = encoder(keypoints)                      # Encode keypoints
+        v_q, vq_loss, encoding_indices = vq(g_e)      # Vector quantization
+        g_h = decoder(v_q)                            # Decode to reconstruct
+
+        recon_loss = F.smooth_l1_loss(g_h, keypoints) # Reconstruction loss
+        l_pct = recon_loss + BETA * vq_loss           # Total loss
+
+        l_pct.backward()
+        optimizer.step()
+
+        total_loss += l_pct.item()
+        loop.set_postfix(loss=l_pct.item())
+
+    avg_loss = total_loss / len(data)
+    print(f'Epoch [{epoch+1}/{EPOCHS}] - Avg Loss: {avg_loss:.4f}')
+
+    if (epoch + 1) % 10 == 0:
+        torch.save({
+            'encoder': encoder.state_dict(),
+            'quantizer': vq.state_dict(),
+            'decoder': decoder.state_dict()
+        }, f'../ckpt/{epoch+1}.pt')
