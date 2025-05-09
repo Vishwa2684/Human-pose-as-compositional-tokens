@@ -11,4 +11,4 @@ authors = [
 description = "package under build"
 dependencies = []
 [tool.setuptools]
-packages = ["model","process"]
+packages = ["model","process","api"]
