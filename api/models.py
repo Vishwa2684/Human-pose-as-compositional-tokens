@@ -15,5 +15,3 @@ def load_decoder_and_quantizer_weights():
 
     # Download the file
     gdown.download(url, output_path, quiet=False)
-
-load_decoder_and_quantizer_weights()
