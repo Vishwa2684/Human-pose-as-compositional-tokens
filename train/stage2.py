@@ -18,6 +18,7 @@ m = 16
 load_decoder_and_quantizer_weights()
 encoder_weights = torch.load(os.path.join(os.getcwd(),'weights','50.pt'),map_location=device)
 
+# Loading Encoder
 encoder = CompositionalEncoder(k=NUM_JOINTS,d=DIMENSION,h=HIDDEN_DIM,m=m).to(device)
 encoder.load_state_dict(encoder_weights['encoder'])
 
