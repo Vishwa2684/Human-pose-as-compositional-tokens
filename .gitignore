@@ -1,5 +1,5 @@
 images
 build
 ckpt
-weights
+**/weights
 **/__pycache__
