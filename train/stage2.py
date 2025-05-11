@@ -16,9 +16,10 @@ m = 16
 
 # loading weights
 load_decoder_and_quantizer_weights()
-encoder_weights = torch.load('./weights/50.pt')
-print(encoder_weights['encoder'])
-encoder = CompositionalEncoder(k=NUM_JOINTS,d=DIMENSION,h=HIDDEN_DIM,m=m).load_state_dict(encoder_weights['encoder'])
+encoder_weights = torch.load(os.path.join(os.getcwd(),'weights','50.pt'),map_location=device)
+
+encoder = CompositionalEncoder(k=NUM_JOINTS,d=DIMENSION,h=HIDDEN_DIM,m=m).to(device)
+encoder.load_state_dict(encoder_weights['encoder'])
 
 # backbone extracts image features X
 
