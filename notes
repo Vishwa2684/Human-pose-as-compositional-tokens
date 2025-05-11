@@ -1,3 +1,11 @@
+Human pose estimation is done as classification task
+
 210 epochs for training on mpii
 
 swin-base -> image 256*256
+
+Mistakes made in stage 1
+- Didn't implement occlusion handiling in MPIIDataset class
+- Didn't use EMA in vector quantizer instead i used MSE.
+- training Stage 1 isolated not sure how to proceed to stage 2 fuck but ill figure it out.
+- some joints are randomly masked in stage 1 to improve generalizability
