@@ -3,7 +3,6 @@ pyproject.toml
 api/__init__.py
 api/models.py
 model/__init__.py
-model/backbone.py
 model/encoder.py
 model/modules.py
 my_package.egg-info/PKG-INFO
