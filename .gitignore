@@ -3,3 +3,4 @@ build
 ckpt
 **/weights
 **/__pycache__
+**/.env
