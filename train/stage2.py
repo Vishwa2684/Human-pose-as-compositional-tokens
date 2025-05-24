@@ -1,8 +1,7 @@
 import os
 import torch
 from dotenv import load_dotenv
-from model.modules import BasicBlock,MixerLayer
-from model.encoder import CompositionalEncoder
+from model.encoder import CompositionalEncoder,ClassificationHead
 from process.data import MPIIDataset
 from api.models import load_decoder_and_quantizer_weights
 import warnings
@@ -34,6 +33,23 @@ print('encoder weights loaded')
 backbone = timm.create_model('swinv2_base_window12to16_192to256.ms_in22k_ft_in1k', pretrained=True)
 backbone.to(device)
 print('backbone loaded')
+
+head = ClassificationHead(
+    in_channels=1024,       # Output from Swin-V2 backbone
+    num_tokens=16,          # M
+    token_dim=256,          # N
+    codebook_size=512       # V
+).to(device)
+print('classification head loaded')
+
+# with torch.no_grad():
+#     backbone.eval()
+#     dummy_input = torch.randn(1, 3, 256, 256).to(device)
+#     features = backbone.forward_features(dummy_input)  # [1, 8, 8, 1024]
+#     logits = head(features)                            # [1, 16, 512]
+#     print(logits.shape)
+
+
 # backbone extracts image features X
 
 # then use 2 basic residual convolutional blocks to modulate features of X.
