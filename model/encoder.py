@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from model.modules import FCBlock, MixerLayer
+from model.modules import FCBlock, MixerLayer,BasicBlock
 
 class CompositionalEncoder(nn.Module):
     def __init__(self,k,d,h,m,dropout_ratio=0.0):
@@ -70,3 +70,56 @@ class Decoder(nn.Module):
         x = self.linear(x) # b x kd
         x = x.view(x.shape[0],self.k,self.d) # b x k x d
         return x
+
+class ClassificationHead(nn.Module):
+    def __init__(self, in_channels, num_tokens, token_dim, codebook_size):
+        """
+        Args:
+            in_channels: C from backbone features (e.g., 1024 from Swin-V2)
+            num_tokens: M, number of compositional tokens (e.g., 16)
+            token_dim: N, embedding dimension per token (e.g., 256)
+            codebook_size: V, number of discrete codebook entries (e.g., 512)
+        """
+        super().__init__()
+        self.modulator = nn.Sequential(
+            BasicBlock(inplanes=in_channels, planes=in_channels),
+            BasicBlock(inplanes=in_channels, planes=in_channels),
+        )
+
+        self.flatten_proj = nn.Linear(in_channels * 8 * 8, num_tokens * token_dim)
+
+        # MLP Mixer Blocks
+        self.mixers = nn.Sequential(*[
+            MixerLayer(
+                hidden_dim=token_dim,
+                hidden_inter_dim=token_dim * 2,
+                token_dim=num_tokens,
+                token_inter_dim=num_tokens * 2,
+                dropout_ratio=0.0
+            ) for i in range(4)
+        ])
+
+        # Final classification layer: M tokens × V classes
+        self.classifier = nn.Linear(token_dim, codebook_size)
+
+        self.num_tokens = num_tokens
+        self.token_dim = token_dim
+
+    def forward(self, x):
+        # x shape: [B, 8, 8, C] => permute to [B, C, 8, 8]
+        x = x.permute(0, 3, 1, 2)  # [B, C, H, W]
+        x = self.modulator(x)
+
+        # Flatten and project: [B, C, H, W] -> [B, M * token_dim]
+        x = x.reshape(x.size(0), -1)
+        x = self.flatten_proj(x)
+
+        # Reshape to [B, M, N]
+        x = x.view(x.size(0), self.num_tokens, self.token_dim)
+
+        # Apply 4 Mixer Blocks
+        x = self.mixers(x)
+
+        # Final logits: [B, M, V]
+        logits = self.classifier(x)
+        return logits
