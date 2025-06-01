@@ -17,7 +17,7 @@ class CompositionalEncoder(nn.Module):
         x = x.transpose(1,2)
         return x
 
-# utilizes EMA
+# utilizes MSE
 class VectorQuantizer(nn.Module):
     def __init__(self, v, h, commitment_cost):
         super().__init__()
