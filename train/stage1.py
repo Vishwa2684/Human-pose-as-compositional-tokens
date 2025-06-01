@@ -16,7 +16,7 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 IMAGE_DIR = '../images/'
 CSV_PATH = '../mpii_human_pose_v1_u12_2/mpii_human_pose.csv'
 IMG_SIZE = 256
-BATCH_SIZE = 32
+BATCH_SIZE = 512
 
 # -----------------------------
 # DATA
