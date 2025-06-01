@@ -1,13 +1,19 @@
 import os
 import torch
+from torch.cuda.amp import autocast
+from tqdm import tqdm
+from torchvision.transforms import transforms
+from torch.utils.data import DataLoader
 from dotenv import load_dotenv
-from model.encoder import CompositionalEncoder,ClassificationHead
+from model.encoder import CompositionalEncoder,ClassificationHead,Decoder,VectorQuantizer
 from process.data import MPIIDataset
 from api.models import load_decoder_and_quantizer_weights
 import warnings
 from huggingface_hub import login
 import timm
 warnings.filterwarnings("ignore")
+
+
 load_dotenv()
 
 login(token=os.getenv('HUGGINGFACE_TOKEN'))
@@ -17,9 +23,24 @@ login(token=os.getenv('HUGGINGFACE_TOKEN'))
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 NUM_JOINTS = 16
 IMAGE_SIZE = 256
+IMAGE_DIR = '../images/'
+CSV_PATH = '../mpii_human_pose_v1_u12_2/mpii_human_pose.csv'
 DIMENSION = 2
 HIDDEN_DIM = 256
 m = 16
+
+# -----------------------------
+# DATA
+# -----------------------------
+transform = transforms.Compose([
+    transforms.ToPILImage(),
+    transforms.Resize((IMAGE_SIZE,IMAGE_SIZE)),
+    transforms.ToTensor(),
+])
+
+######################################################
+# PREPARING MODELS
+######################################################
 
 # loading weights
 load_decoder_and_quantizer_weights()
@@ -42,13 +63,27 @@ head = ClassificationHead(
 ).to(device)
 print('classification head loaded')
 
-# with torch.no_grad():
-#     backbone.eval()
-#     dummy_input = torch.randn(1, 3, 256, 256).to(device)
-#     features = backbone.forward_features(dummy_input)  # [1, 8, 8, 1024]
-#     logits = head(features)                            # [1, 16, 512]
-#     print(logits.shape)
+decoder = Decoder(k=NUM_JOINTS,d=DIMENSION,h=HIDDEN_DIM,m=m).to(device)
+decoder.load_state_dict(encoder_weights['decoder'])
+decoder.requires_grad_(False) # freeze decoder weights for now, we will train it in the next vide
+print('decoder weights loaded')
 
+vq = VectorQuantizer(v=2*HIDDEN_DIM,h=HIDDEN_DIM,commitment_cost=0.25).to(device)
+vq.load_state_dict(encoder_weights['quantizer'])
+vq.requires_grad_(False) # freeze vq weights for now, we will train it in the next video
+print('vq weights loaded')
+
+###################
+# TRAINING CONFIG
+###################
+LEARNING_RATE = 8e-4
+WEIGHT_DECAY = 0.05
+BATCH_SIZE = 256
+EPOCHS = 210
+
+mpii =  MPIIDataset(CSV_PATH,IMAGE_DIR,transform)
+data = DataLoader(mpii,batch_size=BATCH_SIZE,shuffle=True)
+print('data loaded')
 
 # backbone extracts image features X
 
@@ -64,3 +99,35 @@ print('classification head loaded')
 ###### obtained by feeding ground truth poses to encoder.
 
 # decoder is not updated during training
+
+for epoch in range(EPOCHS):
+    total_loss = 0.0
+    loop = tqdm(enumerate(data), total=len(data), desc=f"Epoch [{epoch+1}/{EPOCHS}]")
+
+    for batch_idx, (images, poses, _) in loop:
+        images, poses = images.to(device), poses.to(device)
+
+        # Forward pass
+        features = backbone(images)                # Feature extraction
+        l_hat = head(features)                     # Predicted logits (B, M, V)
+        l = encoder(poses)                         # Ground-truth token indices (B, M)
+
+        # CE(l_hat,l)
+        ce_loss = torch.nn.CrossEntropyLoss()(l_hat.permute(0, 2, 1), l)
+
+        # s = l_hat * c
+        s = torch.matmul(torch.softmax(l_hat, dim=-1), vq.codebook.detach())  # (B, M, H)
+        g_hat = decoder(s)
+
+        # smooth_l1(g_hat,g)
+        sl1_loss = torch.nn.functional.smooth_l1_loss(g_hat, poses)
+        l_all = ce_loss + sl1_loss
+
+        optimizer.zero_grad()
+        l_all.backward()
+        optimizer.step()
+
+        total_loss += l_all.item()
+        loop.set_postfix(loss=l_all.item())
+
+    print(f"Epoch [{epoch+1}/{EPOCHS}] - Avg Loss: {total_loss / len(data):.4f}")
