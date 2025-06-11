@@ -117,7 +117,7 @@ for epoch in range(EPOCHS):
         with torch.no_grad():
             g_e = encoder(poses)
             _, _, encoding_indices = vq(g_e)  # [B*M]
-            l = encoding_indices.view(poses.size(0), NUM_JOINTS)  # [B, M]                        # Ground-truth token indices (B, M)
+            l = encoding_indices.view(poses.size(0), NUM_JOINTS)  # [B, M, V]                        # Ground-truth token indices (B, M)
         # print(f'l:{l.shape}')
         l_hat = head(features)                     # Predicted logits (B, M, V)
         # print(f'l_hat:{l_hat.shape}')
