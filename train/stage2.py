@@ -104,7 +104,24 @@ print('data loaded')
 
 optimizer = AdamW(head.parameters(), lr=LEARNING_RATE, weight_decay=WEIGHT_DECAY)
 
-for epoch in range(EPOCHS):
+# -----------------------------
+# RESUME FROM CHECKPOINT
+# -----------------------------
+CKPT_PATH = '../ckpt/stage 2/classification_head_10.pt'
+start_epoch = 0
+
+if os.path.exists(CKPT_PATH):
+    print(f"✅ Resuming from checkpoint: {CKPT_PATH}")
+    
+    checkpoint = torch.load(CKPT_PATH, map_location=device)
+    head.load_state_dict(checkpoint['classification_head'])
+    optimizer.load_state_dict(checkpoint['optimizer'])
+    start_epoch = checkpoint['epoch']
+    print(f"✅ Loaded classification head and optimizer. Resuming from epoch {start_epoch}")
+else:
+    print(f"❌ Checkpoint not found at: {CKPT_PATH}")
+
+for epoch in range(start_epoch,EPOCHS):
     total_loss = 0.0
     loop = tqdm(enumerate(data), total=len(data), desc=f"Epoch [{epoch+1}/{EPOCHS}]")
 
