@@ -83,7 +83,7 @@ WEIGHT_DECAY = 0.05
 BATCH_SIZE = 256
 EPOCHS = 210
 
-mpii =  MPIIDataset(CSV_PATH,IMAGE_DIR,transform)
+mpii =  MPIIDataset(CSV_PATH,IMAGE_DIR,transform,augment=True)
 data = DataLoader(mpii,batch_size=BATCH_SIZE,shuffle=True)
 print('data loaded')
 
