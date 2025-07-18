@@ -105,3 +105,13 @@ python train/stage1.py
 - Your `stage1.py` is resume-aware and will load `../ckpt/6.pt` if available
 
 Let me know if you'd like this formatted into a proper README.md file or want help extending documentation as Stage II progresses!
+
+
+Citation:
+
+@inproceedings{Geng23PCT,
+	author     = {Zigang Geng and Chunyu Wang and Yixuan Wei and Ze Liu and Houqiang Li and Han Hu},
+	title          = {Human Pose as Compositional Tokens},
+	booktitle = {{CVPR}},
+	year         = {2023}, 
+}
